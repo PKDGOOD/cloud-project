@@ -127,10 +127,13 @@ suspend fun createInstance(region: String) {
 
     val scanner = Scanner(System.`in`)
     try {
-        println("AMI ID를 입력하세요 (예: ami-12345678):")
+        print("AMI ID를 입력하세요 (예: ami-12345678) : ")
         val amiId = scanner.nextLine()
 
-        println("키 페어 이름을 입력하세요 (옵션):")
+        print("생성할 인스턴스의 이름을 입력하세요 : ")
+        val instanceName = scanner.nextLine()
+
+        print("키 페어 이름을 입력하세요 (옵션) : ")
         val keyName = scanner.nextLine()
 
         val request = RunInstancesRequest {
@@ -144,11 +147,33 @@ suspend fun createInstance(region: String) {
         }
 
         val response = ec2Client.runInstances(request)
-        println("인스턴스가 생성되었습니다:")
+
+        val instanceIds = response.instances?.map { it.instanceId!! } ?: emptyList()
+        if (instanceIds.isNotEmpty()) {
+            println("인스턴스가 생성되었습니다: $instanceIds")
+
+            // CreateTagsRequest 인스턴스 이름 추가
+            val tagRequest = CreateTagsRequest {
+                this.resources = instanceIds
+                this.tags = listOf(
+                    Tag {
+                        key = "Name"
+                        value = instanceName
+                    }
+                )
+            }
+            ec2Client.createTags(tagRequest)
+            println("인스턴스에 이름 태그가 추가되었습니다: $instanceName")
+        } else {
+            println("인스턴스를 생성하지 못했습니다.")
+        }
+
+
         response.instances?.forEach { instance ->
             println(" - Instance ID: ${instance.instanceId}")
             println("   State: ${instance.state?.name}")
         }
+
     } catch (e: Exception) {
         println("Error creating instance: ${e.message}")
     } finally {
