@@ -119,6 +119,44 @@ suspend fun stopEc2Instance(region: String, instanceId: String) {
     }
 }
 
+suspend fun createInstance(region: String) {
+    val ec2Client = Ec2Client {
+        this.region = region
+        credentialsProvider = ProfileCredentialsProvider(profileName = "default")
+    }
+
+    val scanner = Scanner(System.`in`)
+    try {
+        println("AMI ID를 입력하세요 (예: ami-12345678):")
+        val amiId = scanner.nextLine()
+
+        println("키 페어 이름을 입력하세요 (옵션):")
+        val keyName = scanner.nextLine()
+
+        val request = RunInstancesRequest {
+            this.imageId = amiId
+            this.instanceType = InstanceType.T2Micro
+            this.minCount = 1
+            this.maxCount = 1
+            if (keyName.isNotBlank()) {
+                this.keyName = keyName
+            }
+        }
+
+        val response = ec2Client.runInstances(request)
+        println("인스턴스가 생성되었습니다:")
+        response.instances?.forEach { instance ->
+            println(" - Instance ID: ${instance.instanceId}")
+            println("   State: ${instance.state?.name}")
+        }
+    } catch (e: Exception) {
+        println("Error creating instance: ${e.message}")
+    } finally {
+        ec2Client.close()
+    }
+}
+
+
 
 suspend fun main() {
     val region = "ap-northeast-2" // 서울 리전
@@ -135,6 +173,8 @@ suspend fun main() {
         println("2. 가용 영역 조회")
         println("3. 인스턴스 시작")
         println("4. 사용가능 리전 조회")
+        println("5. 인스턴스 중지")
+        println("6. 인스턴스 생성")
         println("99. 종료")
         println("--------------------------------------------")
 
@@ -169,6 +209,8 @@ suspend fun main() {
                 val instanceId = menu.next()
                 stopEc2Instance(region, instanceId)
             }
+
+            6 -> createInstance(region)
 
             99 -> return
         }
