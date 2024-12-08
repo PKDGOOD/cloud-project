@@ -181,6 +181,29 @@ suspend fun createInstance(region: String) {
     }
 }
 
+suspend fun rebootInstance(region: String) {
+    val ec2Client = Ec2Client {
+        this.region = region
+        credentialsProvider = ProfileCredentialsProvider(profileName = "default")
+    }
+
+    val scanner = Scanner(System.`in`)
+    try {
+        print("재부팅할 인스턴스 ID를 입력하세요 : ")
+        val instanceId = scanner.nextLine()
+
+        val request = RebootInstancesRequest {
+            this.instanceIds = listOf(instanceId)
+        }
+
+        ec2Client.rebootInstances(request)
+        println("인스턴스가 재부팅되었습니다: $instanceId")
+    } catch (e: Exception) {
+        println("Error rebooting instance: ${e.message}")
+    } finally {
+        ec2Client.close()
+    }
+}
 
 
 suspend fun main() {
@@ -200,6 +223,7 @@ suspend fun main() {
         println("4. 사용가능 리전 조회")
         println("5. 인스턴스 중지")
         println("6. 인스턴스 생성")
+        println("7. 인스턴스 재부팅")
         println("99. 종료")
         println("--------------------------------------------")
 
@@ -236,6 +260,8 @@ suspend fun main() {
             }
 
             6 -> createInstance(region)
+
+            7 -> rebootInstance(region)
 
             99 -> return
         }
