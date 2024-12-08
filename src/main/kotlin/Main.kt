@@ -1,6 +1,10 @@
 import aws.sdk.kotlin.runtime.auth.credentials.ProfileCredentialsProvider
 import aws.sdk.kotlin.services.ec2.Ec2Client
 import aws.sdk.kotlin.services.ec2.model.*
+import aws.sdk.kotlin.services.ssm.SsmClient
+import aws.sdk.kotlin.services.ssm.model.CommandInvocationStatus
+import aws.sdk.kotlin.services.ssm.model.GetCommandInvocationRequest
+import aws.sdk.kotlin.services.ssm.model.SendCommandRequest
 import java.util.*
 
 suspend fun listEc2Instances(region: String) {
@@ -238,6 +242,62 @@ suspend fun listImages(region: String) {
     }
 }
 
+suspend fun executeCommandOnInstance(region: String) {
+    val ssmClient = SsmClient {
+        this.region = region
+        credentialsProvider = ProfileCredentialsProvider(profileName = "default")
+    }
+
+    val scanner = Scanner(System.`in`)
+    try {
+        print("명령을 실행할 인스턴스 ID를 입력하세요 : ")
+        val instanceId = scanner.nextLine()
+
+        print("실행할 명령어를 입력하세요 : ")
+        val command = scanner.nextLine()
+
+        val request = SendCommandRequest {
+            this.instanceIds = listOf(instanceId)
+            this.documentName = "AWS-RunShellScript" // Linux용 Shell 명령 실행
+            this.parameters = mapOf(
+                "commands" to listOf(command)
+            )
+        }
+
+        val response = ssmClient.sendCommand(request)
+        val commandId = response.command?.commandId
+
+        println("명령이 실행되었습니다. Command ID: $commandId")
+        println("결과를 가져오는 중...")
+
+        // 명령 실행 결과 가져오기
+        if (commandId != null) {
+            val resultRequest = GetCommandInvocationRequest {
+                this.commandId = commandId
+                this.instanceId = instanceId
+            }
+
+            while (true) {
+                val resultResponse = ssmClient.getCommandInvocation(resultRequest)
+
+                if (resultResponse.status == CommandInvocationStatus.InProgress) {
+                    println("명령 실행 중...")
+                    Thread.sleep(2000) // 2초 대기
+                } else {
+                    println("명령 실행 완료. 결과:")
+                    println(resultResponse.standardOutputContent)
+                    println("에러:")
+                    println(resultResponse.standardErrorContent)
+                    break
+                }
+            }
+        }
+    } catch (e: Exception) {
+        println("Error executing command: ${e.message}")
+    } finally {
+        ssmClient.close()
+    }
+}
 
 suspend fun main() {
     val region = "ap-northeast-2" // 서울 리전
@@ -258,6 +318,7 @@ suspend fun main() {
         println("6. 인스턴스 생성")
         println("7. 인스턴스 재부팅")
         println("8. 이미지 리스트 조회")
+        println("9. 인스턴스에 명령어 실행")
         println("99. 종료")
         println("--------------------------------------------")
 
@@ -298,6 +359,8 @@ suspend fun main() {
             7 -> rebootInstance(region)
 
             8 -> listImages(region)
+
+            9 -> executeCommandOnInstance(region)
 
             99 -> return
         }
