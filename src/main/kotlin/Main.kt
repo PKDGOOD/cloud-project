@@ -205,6 +205,39 @@ suspend fun rebootInstance(region: String) {
     }
 }
 
+suspend fun listImages(region: String) {
+    val ec2Client = Ec2Client {
+        this.region = region
+        credentialsProvider = ProfileCredentialsProvider(profileName = "default")
+    }
+
+    val scanner = Scanner(System.`in`)
+    try {
+        val request = DescribeImagesRequest {
+            this.owners = listOf("self") // 자신의 계정에서 소유한 이미지
+        }
+
+        val response = ec2Client.describeImages(request)
+
+        if (response.images.isNullOrEmpty()) {
+            println("이미지가 없습니다.")
+        } else {
+            println("사용 가능한 이미지 리스트:")
+            response.images!!.forEach { image ->
+                println(" - Image ID: ${image.imageId}")
+                println("   Name: ${image.name}")
+                println("   State: ${image.state}")
+                println("   Description: ${image.description}")
+                println()
+            }
+        }
+    } catch (e: Exception) {
+        println("Error fetching images: ${e.message}")
+    } finally {
+        ec2Client.close()
+    }
+}
+
 
 suspend fun main() {
     val region = "ap-northeast-2" // 서울 리전
@@ -224,6 +257,7 @@ suspend fun main() {
         println("5. 인스턴스 중지")
         println("6. 인스턴스 생성")
         println("7. 인스턴스 재부팅")
+        println("8. 이미지 리스트 조회")
         println("99. 종료")
         println("--------------------------------------------")
 
@@ -262,6 +296,8 @@ suspend fun main() {
             6 -> createInstance(region)
 
             7 -> rebootInstance(region)
+
+            8 -> listImages(region)
 
             99 -> return
         }
