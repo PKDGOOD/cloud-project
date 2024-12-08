@@ -2,6 +2,7 @@ import aws.sdk.kotlin.runtime.auth.credentials.ProfileCredentialsProvider
 import aws.sdk.kotlin.services.ec2.Ec2Client
 import aws.sdk.kotlin.services.ec2.model.DescribeAvailabilityZonesRequest
 import aws.sdk.kotlin.services.ec2.model.DescribeInstancesRequest
+import aws.sdk.kotlin.services.ec2.model.DescribeRegionsRequest
 import aws.sdk.kotlin.services.ec2.model.StartInstancesRequest
 import java.util.*
 
@@ -78,6 +79,29 @@ suspend fun startEc2Instance(region: String, instanceId: String) {
     }
 }
 
+suspend fun listAvailableRegions(region: String) {
+    val ec2Client = Ec2Client {
+        this.region = region
+        credentialsProvider = ProfileCredentialsProvider(profileName = "default")
+    }
+
+    try {
+        val request = DescribeRegionsRequest { }
+        val response = ec2Client.describeRegions(request)
+
+        println("Available Regions:")
+        response.regions?.forEach { region ->
+            println(" - Region Name: ${region.regionName}")
+            println("   Endpoint: ${region.endpoint}")
+            println()
+        }
+    } catch (e: Exception) {
+        println("Error fetching regions: ${e.message}")
+    } finally {
+        ec2Client.close()
+    }
+}
+
 
 suspend fun main() {
     val region = "ap-northeast-2" // 서울 리전
@@ -93,6 +117,7 @@ suspend fun main() {
         println("1. 인스턴스 목록 조회")
         println("2. 가용 영역 조회")
         println("3. 인스턴스 시작")
+        println("4. 사용가능 리전 조회")
         println("99. 종료")
         println("--------------------------------------------")
 
@@ -117,6 +142,8 @@ suspend fun main() {
                 val instanceId = menu.next()
                 startEc2Instance(region, instanceId)
             }
+            4 -> listAvailableRegions(region)
+            
             99 -> return
         }
     }
