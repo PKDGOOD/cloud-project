@@ -299,6 +299,42 @@ suspend fun executeCommandOnInstance(region: String) {
     }
 }
 
+suspend fun createAmi(region: String) {
+    val ec2Client = Ec2Client {
+        this.region = region
+        credentialsProvider = ProfileCredentialsProvider(profileName = "default")
+    }
+
+    val scanner = Scanner(System.`in`)
+    try {
+        print("AMI를 생성할 인스턴스 ID를 입력하세요: ")
+        val instanceId = scanner.nextLine()
+
+        print("생성할 AMI의 이름을 입력하세요: ")
+        val amiName = scanner.nextLine()
+
+        print("AMI 설명을 입력하세요 (옵션): ")
+        val amiDescription = scanner.nextLine()
+
+        val request = CreateImageRequest {
+            this.instanceId = instanceId
+            this.name = amiName
+            this.description = if (amiDescription.isNotBlank()) amiDescription else null
+            this.noReboot = false // 인스턴스를 재부팅하여 안전한 상태로 생성
+        }
+
+        val response = ec2Client.createImage(request)
+        println("AMI 생성 요청이 완료되었습니다.")
+        println("AMI ID: ${response.imageId}")
+        println("생성이 완료되기까지 몇 분 정도 소요될 수 있습니다.")
+    } catch (e: Exception) {
+        println("Error creating AMI: ${e.message}")
+    } finally {
+        ec2Client.close()
+    }
+}
+
+
 suspend fun main() {
     val region = "ap-northeast-2" // 서울 리전
 
@@ -319,6 +355,7 @@ suspend fun main() {
         println("7. 인스턴스 재부팅")
         println("8. 이미지 리스트 조회")
         println("9. 인스턴스에 명령어 실행")
+        println("10. AMI 생성")
         println("99. 종료")
         println("--------------------------------------------")
 
@@ -361,6 +398,8 @@ suspend fun main() {
             8 -> listImages(region)
 
             9 -> executeCommandOnInstance(region)
+
+            10 -> createAmi(region)
 
             99 -> return
         }
