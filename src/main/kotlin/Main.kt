@@ -1,9 +1,6 @@
 import aws.sdk.kotlin.runtime.auth.credentials.ProfileCredentialsProvider
 import aws.sdk.kotlin.services.ec2.Ec2Client
-import aws.sdk.kotlin.services.ec2.model.DescribeAvailabilityZonesRequest
-import aws.sdk.kotlin.services.ec2.model.DescribeInstancesRequest
-import aws.sdk.kotlin.services.ec2.model.DescribeRegionsRequest
-import aws.sdk.kotlin.services.ec2.model.StartInstancesRequest
+import aws.sdk.kotlin.services.ec2.model.*
 import java.util.*
 
 suspend fun listEc2Instances(region: String) {
@@ -102,6 +99,26 @@ suspend fun listAvailableRegions(region: String) {
     }
 }
 
+suspend fun stopEc2Instance(region: String, instanceId: String) {
+    val ec2Client = Ec2Client {
+        this.region = region
+        credentialsProvider = ProfileCredentialsProvider(profileName = "default")
+    }
+
+    try {
+        val request = StopInstancesRequest {
+            this.instanceIds = listOf(instanceId)
+        }
+        val response = ec2Client.stopInstances(request)
+        println("Stopping instance: $instanceId")
+        println("Current state: ${response.stoppingInstances?.firstOrNull()?.currentState?.name}")
+    } catch (e: Exception) {
+        println("Error stopping instance: ${e.message}")
+    } finally {
+        ec2Client.close()
+    }
+}
+
 
 suspend fun main() {
     val region = "ap-northeast-2" // 서울 리전
@@ -134,16 +151,25 @@ suspend fun main() {
             1 ->  {
                 listEc2Instances(region)
             }
+
             2 -> {
                 listAvailableZones(region)
             }
+
             3 -> {
                 print("시작할 인스턴스 ID를 입력하세요: ")
                 val instanceId = menu.next()
                 startEc2Instance(region, instanceId)
             }
+
             4 -> listAvailableRegions(region)
-            
+
+            5 -> {
+                print("중지할 인스턴스 ID를 입력하세요: ")
+                val instanceId = menu.next()
+                stopEc2Instance(region, instanceId)
+            }
+
             99 -> return
         }
     }
