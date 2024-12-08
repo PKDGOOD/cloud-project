@@ -24,6 +24,7 @@ apply(plugin = "org.jlleitschuh.gradle.ktlint")
 dependencies {
     testImplementation(kotlin("test"))
 
+    implementation("org.slf4j:slf4j-simple:2.0.9")
     implementation("aws.sdk.kotlin:ec2:1.2.28")
     implementation("aws.sdk.kotlin:ssm:1.2.28")
     implementation("aws.sdk.kotlin:secretsmanager:1.2.28")
