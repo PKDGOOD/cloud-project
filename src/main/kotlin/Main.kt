@@ -250,27 +250,26 @@ suspend fun executeCommandOnInstance(region: String) {
 
     val scanner = Scanner(System.`in`)
     try {
-        print("명령을 실행할 인스턴스 ID를 입력하세요 : ")
+        print("명령을 실행할 인스턴스 ID를 입력하세요: ")
         val instanceId = scanner.nextLine()
 
-        print("실행할 명령어를 입력하세요 : ")
+        print("실행할 명령어를 입력하세요: ")
         val command = scanner.nextLine()
 
-        val request = SendCommandRequest {
+        val sendCommandRequest = SendCommandRequest {
             this.instanceIds = listOf(instanceId)
-            this.documentName = "AWS-RunShellScript" // Linux용 Shell 명령 실행
-            this.parameters = mapOf(
-                "commands" to listOf(command)
-            )
+            this.documentName = "AWS-RunShellScript"
+            this.parameters = mapOf("commands" to listOf(command))
         }
 
-        val response = ssmClient.sendCommand(request)
-        val commandId = response.command?.commandId
+        val sendCommandResponse = ssmClient.sendCommand(sendCommandRequest)
+        Thread.sleep(1500) // 대기 시간 추가
+        val commandId = sendCommandResponse.command?.commandId
 
-        println("명령이 실행되었습니다. Command ID: $commandId")
+        println("명령 실행 요청 완료. Command ID: $commandId")
         println("결과를 가져오는 중...")
 
-        // 명령 실행 결과 가져오기
+        // Command 실행 후 결과 조회
         if (commandId != null) {
             val resultRequest = GetCommandInvocationRequest {
                 this.commandId = commandId
@@ -280,14 +279,13 @@ suspend fun executeCommandOnInstance(region: String) {
             while (true) {
                 val resultResponse = ssmClient.getCommandInvocation(resultRequest)
 
-                if (resultResponse.status == CommandInvocationStatus.InProgress) {
+                if (resultResponse.status in arrayOf(CommandInvocationStatus.InProgress, CommandInvocationStatus.Pending)) {
                     println("명령 실행 중...")
-                    Thread.sleep(2000) // 2초 대기
+                    Thread.sleep(1000) // 대기 시간 추가
                 } else {
-                    println("명령 실행 완료. 결과:")
-                    println(resultResponse.standardOutputContent)
-                    println("에러:")
-                    println(resultResponse.standardErrorContent)
+                    println("명령 실행 완료.")
+                    println("출력: ${resultResponse.standardOutputContent}")
+                    println("에러: ${resultResponse.standardErrorContent}")
                     break
                 }
             }
